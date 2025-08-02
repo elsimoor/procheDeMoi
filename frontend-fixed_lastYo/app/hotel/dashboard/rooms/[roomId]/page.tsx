@@ -6,6 +6,7 @@ import { gql, useQuery, useMutation } from "@apollo/client";
 // Import Firebase helpers for image upload and deletion
 import { uploadImage, deleteImage } from "../../../../lib/firebase";
 import { ArrowLeft, X } from "lucide-react";
+import { ImageUpload } from "../../../../components/ui/ImageUpload";
 
 /**
  * Detailed room management page.  This page fetches a single room by
@@ -84,28 +85,19 @@ export default function HotelRoomDetailsPage() {
 
   const [updateRoom] = useMutation(UPDATE_ROOM);
 
-  // Handler for selecting files via the file input.  We allow multiple
-  // files to be selected and store them in local state until the user
-  // clicks the Upload button.
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    setSelectedFiles(files as File[]);
-  };
-
   // Upload all selected files to Firebase and append their URLs to the
   // images array in the form state.  Clears the selected files once
   // complete.  Errors are logged to the console.
-  const handleUpload = async () => {
-    if (selectedFiles.length === 0) return;
+  const handleUpload = async (files: File[]) => {
+    if (files.length === 0) return;
     setUploading(true);
     try {
       const urls: string[] = [];
-      for (const file of selectedFiles) {
+      for (const file of files) {
         const url = await uploadImage(file);
         urls.push(url);
       }
       setFormState((prev) => ({ ...prev, images: [...(prev.images as string[]), ...urls] }));
-      setSelectedFiles([]);
     } catch (err) {
       console.error(err);
     } finally {
@@ -128,7 +120,6 @@ export default function HotelRoomDetailsPage() {
     }
   };
   // Local state for file uploads
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
 
   // Local state for the room form.  We populate this once we find the
@@ -143,9 +134,9 @@ export default function HotelRoomDetailsPage() {
     capacity: "" as string | number,
     price: "" as string | number,
     status: "available",
-    amenities: "",
+    amenities: [] as string[],
     images: [] as string[],
-    bedType: "",
+    bedType: [] as string[],
     numberOfBeds: "" as string | number,
     numberOfBathrooms: "" as string | number,
     description: "",
@@ -163,9 +154,9 @@ export default function HotelRoomDetailsPage() {
           capacity: room.capacity ?? "",
           price: room.price ?? "",
           status: room.status || "available",
-          amenities: room.amenities?.join(", ") || "",
+          amenities: Array.isArray(room.amenities) ? room.amenities : [],
           images: Array.isArray(room.images) ? room.images : [],
-          bedType: room.bedType || "",
+          bedType: Array.isArray(room.bedType) ? room.bedType : [],
           numberOfBeds: room.numberOfBeds ?? "",
           numberOfBathrooms: room.numberOfBathrooms ?? "",
           description: room.description || "",
@@ -177,10 +168,6 @@ export default function HotelRoomDetailsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formState.id) return;
-    // Convert comma‑separated amenities string to array
-    const amenitiesArray = formState.amenities
-      ? formState.amenities.split(",").map((a) => a.trim()).filter(Boolean)
-      : [];
     const input: any = {
       hotelId,
       number: formState.number,
@@ -190,9 +177,7 @@ export default function HotelRoomDetailsPage() {
       // Price is required by the backend; default to 0 when empty
       price: formState.price !== "" ? Number(formState.price) : 0,
       status: formState.status,
-      amenities: amenitiesArray,
       images: formState.images,
-      bedType: formState.bedType || undefined,
       numberOfBeds: formState.numberOfBeds !== "" ? Number(formState.numberOfBeds) : undefined,
       numberOfBathrooms: formState.numberOfBathrooms !== "" ? Number(formState.numberOfBathrooms) : undefined,
       description: formState.description || undefined,
@@ -233,130 +218,131 @@ export default function HotelRoomDetailsPage() {
         </button>
         <h1 className="text-3xl font-bold text-gray-900">Room {formState.number}</h1>
       </div>
-      {/* Form for editing the room */}
-      <div className="bg-white rounded-lg shadow-sm border p-4">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Edit Room Details</h2>
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Room Number</label>
-            <input
-              type="text"
-              value={formState.number}
-              onChange={(e) => setFormState({ ...formState, number: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Room Type</label>
-            <select
-              value={formState.type}
-              onChange={(e) => setFormState({ ...formState, type: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="Standard">Standard</option>
-              <option value="Deluxe">Deluxe</option>
-              <option value="Suite">Suite</option>
-              <option value="Executive">Executive</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Floor</label>
-            <input
-              type="number"
-              value={formState.floor}
-              onChange={(e) => setFormState({ ...formState, floor: e.target.value === "" ? "" : Number(e.target.value) })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
-            <input
-              type="number"
-              value={formState.capacity}
-              onChange={(e) => setFormState({ ...formState, capacity: e.target.value === "" ? "" : Number(e.target.value) })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
-            <input
-              type="number"
-              value={formState.price}
-              onChange={(e) => setFormState({ ...formState, price: e.target.value === "" ? "" : Number(e.target.value) })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <select
-              value={formState.status}
-              onChange={(e) => setFormState({ ...formState, status: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="available">Available</option>
-              <option value="occupied">Occupied</option>
-              <option value="maintenance">Maintenance</option>
-              <option value="cleaning">Cleaning</option>
-            </select>
-          </div>
-          {/* Amenities input */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Amenities (comma separated)</label>
-            <input
-              type="text"
-              value={formState.amenities}
-              onChange={(e) => setFormState({ ...formState, amenities: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          {/* Bed type and counts */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Bed Type</label>
-            <input
-              type="text"
-              value={formState.bedType}
-              onChange={(e) => setFormState({ ...formState, bedType: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Number of Beds</label>
-            <input
-              type="number"
-              value={formState.numberOfBeds}
-              onChange={(e) => setFormState({ ...formState, numberOfBeds: e.target.value === "" ? "" : Number(e.target.value) })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Number of Bathrooms</label>
-            <input
-              type="number"
-              value={formState.numberOfBathrooms}
-              onChange={(e) => setFormState({ ...formState, numberOfBathrooms: e.target.value === "" ? "" : Number(e.target.value) })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          {/* Description */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea
-              value={formState.description}
-              onChange={(e) => setFormState({ ...formState, description: e.target.value })}
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          {/* Room Photos section */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Room Photos</label>
-            {/* Display existing images */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left column for room details form */}
+        <div className="lg:col-span-2">
+          <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-lg shadow-sm border p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Room Number</label>
+                <input
+                  type="text"
+                  value={formState.number}
+                  onChange={(e) => setFormState({ ...formState, number: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Room Type</label>
+                <select
+                  value={formState.type}
+                  onChange={(e) => setFormState({ ...formState, type: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="Standard">Standard</option>
+                  <option value="Deluxe">Deluxe</option>
+                  <option value="Suite">Suite</option>
+                  <option value="Executive">Executive</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Floor</label>
+                <input
+                  type="number"
+                  value={formState.floor}
+                  onChange={(e) => setFormState({ ...formState, floor: e.target.value === "" ? "" : Number(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
+                <input
+                  type="number"
+                  value={formState.capacity}
+                  onChange={(e) => setFormState({ ...formState, capacity: e.target.value === "" ? "" : Number(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
+                <input
+                  type="number"
+                  value={formState.price}
+                  onChange={(e) => setFormState({ ...formState, price: e.target.value === "" ? "" : Number(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={formState.status}
+                  onChange={(e) => setFormState({ ...formState, status: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="available">Available</option>
+                  <option value="occupied">Occupied</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="cleaning">Cleaning</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Number of Beds</label>
+                <input
+                  type="number"
+                  value={formState.numberOfBeds}
+                  onChange={(e) => setFormState({ ...formState, numberOfBeds: e.target.value === "" ? "" : Number(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Number of Bathrooms</label>
+                <input
+                  type="number"
+                  value={formState.numberOfBathrooms}
+                  onChange={(e) => setFormState({ ...formState, numberOfBathrooms: e.target.value === "" ? "" : Number(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                value={formState.description}
+                onChange={(e) => setFormState({ ...formState, description: e.target.value })}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center space-x-4">
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              >
+                Save Changes
+              </button>
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Right column for photos and other info */}
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Room Photos</h3>
             {Array.isArray(formState.images) && formState.images.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                 {(formState.images as string[]).map((img) => (
                   <div key={img} className="relative group">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={img}
                       alt="Room"
@@ -373,41 +359,31 @@ export default function HotelRoomDetailsPage() {
                 ))}
               </div>
             )}
-            {/* File input and upload button */}
-            <div className="flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-3">
-              <input
-                type="file"
-                multiple
-                onChange={handleFileChange}
-                className="border border-gray-300 rounded px-3 py-2"
-              />
-              <button
-                type="button"
-                onClick={handleUpload}
-                disabled={uploading || selectedFiles.length === 0}
-                className={`px-4 py-2 rounded text-white ${uploading || selectedFiles.length === 0 ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}
-              >
-                {uploading ? "Uploading..." : "Upload Photos"}
-              </button>
+            <ImageUpload onUpload={handleUpload} uploading={uploading} />
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Amenities</h3>
+            <div className="flex flex-wrap gap-2">
+              {(formState.amenities as string[]).map((amenity) => (
+                <span key={amenity} className="px-3 py-1 bg-gray-200 text-gray-800 rounded-full text-sm">
+                  {amenity}
+                </span>
+              ))}
             </div>
           </div>
-          {/* Action buttons */}
-          <div className="md:col-span-2 flex items-center space-x-4 mt-4">
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-            >
-              Save Changes
-            </button>
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg font-medium hover:bg-gray-300 transition-colors"
-            >
-              Cancel
-            </button>
+
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Bed Types</h3>
+            <div className="flex flex-wrap gap-2">
+              {(formState.bedType as string[]).map((bt) => (
+                <span key={bt} className="px-3 py-1 bg-gray-200 text-gray-800 rounded-full text-sm">
+                  {bt}
+                </span>
+              ))}
+            </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
