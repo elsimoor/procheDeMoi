@@ -955,7 +955,7 @@ export type RestaurantSettingsInput = {
 export type Room = {
   __typename?: 'Room';
   amenities: Array<Scalars['String']>;
-  bedType?: Maybe<Scalars['String']>;
+  bedType?: Maybe<Array<Maybe<Scalars['String']>>>;
   capacity: Scalars['Int'];
   condition: Scalars['String'];
   createdAt: Scalars['Date'];
@@ -980,7 +980,7 @@ export type Room = {
 
 export type RoomInput = {
   amenities?: InputMaybe<Array<Scalars['String']>>;
-  bedType?: InputMaybe<Scalars['String']>;
+  bedType?: InputMaybe<Array<InputMaybe<Scalars['String']>>>;
   capacity: Scalars['Int'];
   condition?: InputMaybe<Scalars['String']>;
   description?: InputMaybe<Scalars['String']>;
