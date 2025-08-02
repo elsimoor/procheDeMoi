@@ -140,7 +140,7 @@ exports.inputs = (0, apollo_server_express_1.gql) `
     images: [String!]
 
     # Additional descriptive fields for a room
-    bedType: String
+    bedType: [String]
     numberOfBeds: Int
     numberOfBathrooms: Int
     description: String
