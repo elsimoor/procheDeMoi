@@ -76,6 +76,9 @@ interface Policy {
   category: string
 }
 
+// Helper function to remove __typename from an array of objects
+const cleanTypename = (arr: any[]) => arr.map(({ __typename, ...rest }) => rest);
+
 export default function HotelOptions() {
   const [activeTab, setActiveTab] = useState("services")
   const [showModal, setShowModal] = useState(false)
@@ -217,7 +220,16 @@ export default function HotelOptions() {
     // the hotel to refresh local state.
     const persistChanges = async (updatedServices: any[], updatedAmenities: any[], updatedPolicies: any[]) => {
       try {
-        await updateHotel({ variables: { id: hotelId, input: { services: updatedServices, amenities: updatedAmenities, policies: updatedPolicies } } })
+        await updateHotel({
+          variables: {
+            id: hotelId,
+            input: {
+              services: cleanTypename(updatedServices.map(({ id, icon, ...rest }) => rest)),
+              amenities: cleanTypename(updatedAmenities.map(({ id, ...rest }) => rest)),
+              policies: cleanTypename(updatedPolicies.map(({ id, ...rest }) => rest)),
+            },
+          },
+        })
         await refetchHotel()
       } catch (err) {
         console.error(err)
@@ -323,9 +335,9 @@ export default function HotelOptions() {
           variables: {
             id: hotelId,
             input: {
-              services: updatedServices.map(({ id, icon, ...rest }) => rest),
-              amenities: updatedAmenities.map(({ id, ...rest }) => rest),
-              policies: updatedPolicies.map(({ id, ...rest }) => rest),
+              services: cleanTypename(updatedServices.map(({ id, icon, ...rest }) => rest)),
+              amenities: cleanTypename(updatedAmenities.map(({ id, ...rest }) => rest)),
+              policies: cleanTypename(updatedPolicies.map(({ id, ...rest }) => rest)),
             },
           },
         })
