@@ -123,6 +123,7 @@ exports.businessTypeDef = (0, apollo_server_express_1.gql) `
     description: String
     included: Boolean!
     category: String
+    price: Float
   }
 
   type BusinessService {

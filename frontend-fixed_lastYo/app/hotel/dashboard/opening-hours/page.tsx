@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { gql, useQuery, useMutation } from "@apollo/client";
-import { Calendar } from "lucide-react";
+import { DateRangePicker } from "../../../../components/ui/DateRangePicker";
+import { DateRange } from "react-day-picker";
 
 // GraphQL queries
 const GET_HOTEL_OPENING = gql`
@@ -72,8 +73,7 @@ export default function OpeningHoursPage() {
   const [updateHotel] = useMutation(UPDATE_HOTEL);
 
   // Local state for new period form
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [date, setDate] = useState<DateRange | undefined>(undefined);
   const [loadingMutation, setLoadingMutation] = useState(false);
 
   const periods: OpeningPeriod[] = hotelData?.hotel?.openingPeriods || [];
@@ -81,15 +81,11 @@ export default function OpeningHoursPage() {
   // Add a new opening period
   const handleAddPeriod = async () => {
     if (!hotelId) return;
-    if (!startDate || !endDate) {
-      alert("Please select both start and end dates.");
+    if (!date || !date.from || !date.to) {
+      alert("Please select a date range.");
       return;
     }
-    if (new Date(startDate) > new Date(endDate)) {
-      alert("Start date must be before end date.");
-      return;
-    }
-    const newPeriods = [...periods, { startDate, endDate }];
+    const newPeriods = [...periods, { startDate: date.from.toISOString(), endDate: date.to.toISOString() }];
     try {
       setLoadingMutation(true);
       await updateHotel({
@@ -98,8 +94,7 @@ export default function OpeningHoursPage() {
           input: { openingPeriods: newPeriods.map((p) => ({ startDate: p.startDate, endDate: p.endDate })) },
         },
       });
-      setStartDate("");
-      setEndDate("");
+      setDate(undefined);
       refetchHotel();
     } catch (err) {
       console.error(err);
@@ -148,73 +143,51 @@ export default function OpeningHoursPage() {
           Définissez les périodes pendant lesquelles votre établissement est ouvert aux réservations.
         </p>
       </div>
-      {/* Form to add new period */}
-      <div className="bg-white rounded-lg shadow-sm border p-4">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Ajouter une période d'ouverture</h2>
-        <div className="grid md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date de début</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date de fin</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-4">Ajouter une période d'ouverture</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sélectionnez une plage de dates</label>
+                <DateRangePicker date={date} onDateChange={setDate} />
+              </div>
+              <button
+                onClick={handleAddPeriod}
+                disabled={loadingMutation}
+                className={`w-full px-4 py-2 rounded text-white ${loadingMutation ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}
+              >
+                Ajouter
+              </button>
+            </div>
           </div>
         </div>
-        <button
-          onClick={handleAddPeriod}
-          disabled={loadingMutation}
-          className={`mt-4 px-4 py-2 rounded text-white ${loadingMutation ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}
-        >
-          Ajouter
-        </button>
-      </div>
-      {/* List of periods */}
-      <div className="bg-white rounded-lg shadow-sm border p-4">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Périodes d'ouverture configurées</h2>
-        {periods.length > 0 ? (
-          <table className="min-w-full text-sm text-left">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 font-medium text-gray-700">Date de début</th>
-                <th className="px-4 py-2 font-medium text-gray-700">Date de fin</th>
-                <th className="px-4 py-2 font-medium text-gray-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {periods.map((period, index) => (
-                <tr key={index} className="border-t">
-                  <td className="px-4 py-2">
-                    {new Date(period.startDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                  </td>
-                  <td className="px-4 py-2">
-                    {new Date(period.endDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                  </td>
-                  <td className="px-4 py-2">
+        <div className="lg:col-span-2">
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-4">Périodes d'ouverture configurées</h2>
+            {periods.length > 0 ? (
+              <ul className="space-y-3">
+                {periods.map((period, index) => (
+                  <li key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <span className="font-medium text-gray-800">
+                        {new Date(period.startDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })} - {new Date(period.endDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                      </span>
+                    </div>
                     <button
                       onClick={() => handleRemovePeriod(index)}
-                      className="text-red-600 hover:underline"
+                      className="text-red-500 hover:text-red-700 font-medium"
                     >
                       Supprimer
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>Aucune période configurée.</p>
-        )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-gray-500">Aucune période configurée.</p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
