@@ -252,7 +252,7 @@ export default function HotelRoomsPage() {
       console.error(err);
     }
   };
-
+  
   // Handle editing a room
   const handleEdit = (room: any) => {
     setEditingId(room.id);
