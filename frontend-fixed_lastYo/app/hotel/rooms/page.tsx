@@ -96,7 +96,7 @@ export default function RoomsListPage() {
   // Choose between availableRooms and rooms depending on whether dates
   // are provided.  When check‑in/out are specified we fetch only
   // available rooms; otherwise we fall back to all rooms.
-  const {
+  const { 
     data: roomsData,
     loading: roomsLoading,
     error: roomsError,
