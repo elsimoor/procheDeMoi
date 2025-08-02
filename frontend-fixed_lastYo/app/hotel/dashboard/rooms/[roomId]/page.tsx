@@ -6,7 +6,7 @@ import { gql, useQuery, useMutation } from "@apollo/client";
 // Import Firebase helpers for image upload and deletion
 import { uploadImage, deleteImage } from "../../../../lib/firebase";
 import { ArrowLeft, X } from "lucide-react";
-import { ImageUpload } from "../../../../components/ui/ImageUpload";
+import { ImageUpload } from "@/components/ui/ImageUpload";
 
 /**
  * Detailed room management page.  This page fetches a single room by

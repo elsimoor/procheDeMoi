@@ -107,6 +107,45 @@ export enum CacheControlScope {
   Public = 'PUBLIC'
 }
 
+/**
+ * A Client (also referred to as a Business) represents a single tenant of
+ * the reservation system.  Clients own reservations, rooms, services and
+ * tables via the clientId foreign key.  Clients can be activated or
+ * deactivated; deactivated clients are hidden from queries.
+ */
+export type Client = {
+  __typename?: 'Client';
+  address?: Maybe<Address>;
+  contact?: Maybe<Contact>;
+  createdAt: Scalars['Date'];
+  id: Scalars['ID'];
+  isActive: Scalars['Boolean'];
+  modules: Modules;
+  name: Scalars['String'];
+  siret?: Maybe<Scalars['String']>;
+  theme?: Maybe<Theme>;
+  updatedAt: Scalars['Date'];
+};
+
+export type ClientInput = {
+  address?: InputMaybe<AddressInput>;
+  contact?: InputMaybe<ContactInput>;
+  modules: ModulesInput;
+  name: Scalars['String'];
+  siret?: InputMaybe<Scalars['String']>;
+  theme?: InputMaybe<ThemeInput>;
+};
+
+export type ClientUpdateInput = {
+  address?: InputMaybe<AddressInput>;
+  contact?: InputMaybe<ContactInput>;
+  isActive?: InputMaybe<Scalars['Boolean']>;
+  modules?: InputMaybe<ModulesInput>;
+  name?: InputMaybe<Scalars['String']>;
+  siret?: InputMaybe<Scalars['String']>;
+  theme?: InputMaybe<ThemeInput>;
+};
+
 export type CommunicationPreferences = {
   __typename?: 'CommunicationPreferences';
   email: Scalars['Boolean'];
@@ -220,6 +259,7 @@ export type Hotel = {
   images: Array<Scalars['String']>;
   isActive: Scalars['Boolean'];
   name: Scalars['String'];
+  openingPeriods?: Maybe<Array<OpeningPeriod>>;
   policies: Array<Policy>;
   rating?: Maybe<Rating>;
   services: Array<BusinessService>;
@@ -233,7 +273,8 @@ export type HotelInput = {
   contact?: InputMaybe<ContactInput>;
   description?: InputMaybe<Scalars['String']>;
   images?: InputMaybe<Array<Scalars['String']>>;
-  name: Scalars['String'];
+  name?: InputMaybe<Scalars['String']>;
+  openingPeriods?: InputMaybe<Array<OpeningPeriodInput>>;
   policies?: InputMaybe<Array<PolicyInput>>;
   services?: InputMaybe<Array<BusinessServiceInput>>;
   settings?: InputMaybe<HotelSettingsInput>;
@@ -302,9 +343,29 @@ export type MenuItemInput = {
   spiceLevel?: InputMaybe<Scalars['String']>;
 };
 
+/** A set of flags indicating which reservation modules are active for a client. */
+export type Modules = {
+  __typename?: 'Modules';
+  restaurant: Scalars['Boolean'];
+  rooms: Scalars['Boolean'];
+  services: Scalars['Boolean'];
+};
+
+export type ModulesInput = {
+  restaurant: Scalars['Boolean'];
+  rooms: Scalars['Boolean'];
+  services: Scalars['Boolean'];
+};
+
 export type Mutation = {
   __typename?: 'Mutation';
   _?: Maybe<Scalars['String']>;
+  /**
+   * Create a new client.  The caller may specify the modules and theme; if
+   * omitted the modules default to all disabled and the theme is blank.  A
+   * newly created client is active by default.
+   */
+  createClient: Client;
   createGuest: Guest;
   createHotel: Hotel;
   createMenuItem: MenuItem;
@@ -315,6 +376,11 @@ export type Mutation = {
   createService: Service;
   createStaff: Staff;
   createTable: Table;
+  /**
+   * Soft delete a client.  Rather than removing the document from the
+   * database this sets the isActive flag to false.  Returns true on success.
+   */
+  deleteClient: Scalars['Boolean'];
   deleteGuest: Scalars['Boolean'];
   deleteHotel: Scalars['Boolean'];
   deleteMenuItem: Scalars['Boolean'];
@@ -327,6 +393,11 @@ export type Mutation = {
   deleteTable: Scalars['Boolean'];
   login: AuthPayload;
   register: AuthPayload;
+  /**
+   * Update an existing client.  Only the provided fields will be modified.
+   * Attempting to update a non‑existent client returns null.
+   */
+  updateClient?: Maybe<Client>;
   updateGuest: Guest;
   updateHotel: Hotel;
   updateMenuItem: MenuItem;
@@ -337,6 +408,12 @@ export type Mutation = {
   updateService: Service;
   updateStaff: Staff;
   updateTable: Table;
+  updateUser: User;
+};
+
+
+export type MutationCreateClientArgs = {
+  input: ClientInput;
 };
 
 
@@ -387,6 +464,11 @@ export type MutationCreateStaffArgs = {
 
 export type MutationCreateTableArgs = {
   input: TableInput;
+};
+
+
+export type MutationDeleteClientArgs = {
+  id: Scalars['ID'];
 };
 
 
@@ -450,6 +532,12 @@ export type MutationRegisterArgs = {
 };
 
 
+export type MutationUpdateClientArgs = {
+  id: Scalars['ID'];
+  input: ClientUpdateInput;
+};
+
+
 export type MutationUpdateGuestArgs = {
   id: Scalars['ID'];
   input: GuestInput;
@@ -509,6 +597,12 @@ export type MutationUpdateTableArgs = {
   input: TableInput;
 };
 
+
+export type MutationUpdateUserArgs = {
+  id: Scalars['ID'];
+  input: UserUpdateInput;
+};
+
 export type NotificationPreferences = {
   __typename?: 'NotificationPreferences';
   email?: Maybe<Scalars['Boolean']>;
@@ -529,6 +623,22 @@ export type NutritionalInfoInput = {
   carbs?: InputMaybe<Scalars['Float']>;
   fat?: InputMaybe<Scalars['Float']>;
   protein?: InputMaybe<Scalars['Float']>;
+};
+
+/**
+ * OpeningPeriod defines a continuous date range during which a hotel
+ * accepts reservations.  Both startDate and endDate are inclusive.
+ */
+export type OpeningPeriod = {
+  __typename?: 'OpeningPeriod';
+  endDate: Scalars['Date'];
+  startDate: Scalars['Date'];
+};
+
+/** OpeningPeriodInput represents a date range (inclusive) when a hotel is open. */
+export type OpeningPeriodInput = {
+  endDate: Scalars['Date'];
+  startDate: Scalars['Date'];
 };
 
 export type Policy = {
@@ -558,6 +668,24 @@ export type PositionInput = {
 export type Query = {
   __typename?: 'Query';
   _: Scalars['String'];
+  /**
+   * Return a list of rooms that are available for the given hotel and date
+   * range.  A room is considered available if it is active, has status
+   * "available" and there is no existing hotel reservation with
+   * overlapping check‑in/check‑out dates for that room.  Both
+   * parameters are required and should be ISO formatted dates.
+   */
+  availableRooms: Array<Room>;
+  /**
+   * Fetch a single client by its ID.  Returns null if no client exists
+   * with the provided identifier.
+   */
+  client?: Maybe<Client>;
+  /**
+   * Return a list of all active clients.  Inactive clients are filtered
+   * automatically.  Clients are ordered by creation date descending.
+   */
+  clients: Array<Client>;
   guest?: Maybe<Guest>;
   guests: Array<Guest>;
   hotel?: Maybe<Hotel>;
@@ -580,6 +708,18 @@ export type Query = {
   tables: Array<Table>;
   user?: Maybe<User>;
   users: Array<User>;
+};
+
+
+export type QueryAvailableRoomsArgs = {
+  checkIn: Scalars['Date'];
+  checkOut: Scalars['Date'];
+  hotelId: Scalars['ID'];
+};
+
+
+export type QueryClientArgs = {
+  id: Scalars['ID'];
 };
 
 
@@ -706,10 +846,10 @@ export type RegisterInput = {
 
 export type Reservation = {
   __typename?: 'Reservation';
-  businessId?: Maybe<Hotel>;
   businessType: Scalars['String'];
   checkIn?: Maybe<Scalars['Date']>;
   checkOut?: Maybe<Scalars['Date']>;
+  client?: Maybe<Client>;
   createdAt: Scalars['Date'];
   customerId?: Maybe<User>;
   customerInfo: CustomerInfo;
@@ -815,9 +955,11 @@ export type RestaurantSettingsInput = {
 export type Room = {
   __typename?: 'Room';
   amenities: Array<Scalars['String']>;
+  bedType?: Maybe<Scalars['String']>;
   capacity: Scalars['Int'];
   condition: Scalars['String'];
   createdAt: Scalars['Date'];
+  description?: Maybe<Scalars['String']>;
   features: Array<Scalars['String']>;
   floor?: Maybe<Scalars['Int']>;
   hotelId: Scalars['ID'];
@@ -827,6 +969,8 @@ export type Room = {
   lastCleaned?: Maybe<Scalars['Date']>;
   nextMaintenance?: Maybe<Scalars['Date']>;
   number: Scalars['String'];
+  numberOfBathrooms?: Maybe<Scalars['Int']>;
+  numberOfBeds?: Maybe<Scalars['Int']>;
   price: Scalars['Float'];
   size?: Maybe<Scalars['Int']>;
   status: Scalars['String'];
@@ -836,8 +980,10 @@ export type Room = {
 
 export type RoomInput = {
   amenities?: InputMaybe<Array<Scalars['String']>>;
+  bedType?: InputMaybe<Scalars['String']>;
   capacity: Scalars['Int'];
   condition?: InputMaybe<Scalars['String']>;
+  description?: InputMaybe<Scalars['String']>;
   features?: InputMaybe<Array<Scalars['String']>>;
   floor?: InputMaybe<Scalars['Int']>;
   hotelId: Scalars['ID'];
@@ -845,6 +991,8 @@ export type RoomInput = {
   lastCleaned?: InputMaybe<Scalars['Date']>;
   nextMaintenance?: InputMaybe<Scalars['Date']>;
   number: Scalars['String'];
+  numberOfBathrooms?: InputMaybe<Scalars['Int']>;
+  numberOfBeds?: InputMaybe<Scalars['Int']>;
   price: Scalars['Float'];
   size?: InputMaybe<Scalars['Int']>;
   status?: InputMaybe<Scalars['String']>;
@@ -900,17 +1048,21 @@ export type SalonSettingsInput = {
 
 export type Service = {
   __typename?: 'Service';
+  allowClientChoose?: Maybe<Scalars['Boolean']>;
   available: Scalars['Boolean'];
   businessId: Scalars['ID'];
   businessType: Scalars['String'];
   category?: Maybe<Scalars['String']>;
   createdAt: Scalars['Date'];
+  defaultEmployee?: Maybe<Scalars['ID']>;
+  defaultRoom?: Maybe<Scalars['ID']>;
   description?: Maybe<Scalars['String']>;
   duration?: Maybe<Scalars['Int']>;
   id: Scalars['ID'];
   images: Array<Scalars['String']>;
   isActive: Scalars['Boolean'];
   name: Scalars['String'];
+  options: Array<ServiceOption>;
   popular: Scalars['Boolean'];
   price: Scalars['Float'];
   requirements: Array<Scalars['String']>;
@@ -919,18 +1071,47 @@ export type Service = {
 };
 
 export type ServiceInput = {
+  allowClientChoose?: InputMaybe<Scalars['Boolean']>;
   available?: InputMaybe<Scalars['Boolean']>;
   businessId: Scalars['ID'];
   businessType: Scalars['String'];
   category?: InputMaybe<Scalars['String']>;
+  defaultEmployee?: InputMaybe<Scalars['ID']>;
+  defaultRoom?: InputMaybe<Scalars['ID']>;
   description?: InputMaybe<Scalars['String']>;
   duration?: InputMaybe<Scalars['Int']>;
   images?: InputMaybe<Array<Scalars['String']>>;
   name: Scalars['String'];
+  options?: InputMaybe<Array<ServiceOptionInput>>;
   popular?: InputMaybe<Scalars['Boolean']>;
   price: Scalars['Float'];
   requirements?: InputMaybe<Array<Scalars['String']>>;
   staffRequired?: InputMaybe<Array<Scalars['String']>>;
+};
+
+/**
+ * Represents an optional add‑on for a salon service.  Service options
+ * allow salons to offer customisations that adjust the base price and
+ * duration of a service.  For example, a massage service might have an
+ * option to add aromatherapy for an additional fee and time.
+ */
+export type ServiceOption = {
+  __typename?: 'ServiceOption';
+  durationImpact?: Maybe<Scalars['Int']>;
+  name: Scalars['String'];
+  price?: Maybe<Scalars['Float']>;
+};
+
+/**
+ * Input type for specifying service options when creating or updating a
+ * service.  Each option can independently modify the price and
+ * duration of the service.  All fields are optional; omitting a field
+ * will leave the corresponding value unchanged.
+ */
+export type ServiceOptionInput = {
+  durationImpact?: InputMaybe<Scalars['Int']>;
+  name: Scalars['String'];
+  price?: InputMaybe<Scalars['Float']>;
 };
 
 export type Staff = {
@@ -999,6 +1180,26 @@ export type TableInput = {
   status?: InputMaybe<Scalars['String']>;
 };
 
+/**
+ * Visual theme customisation for a client.  Optional properties allow
+ * overriding the logo, primary/secondary colours and typography.  These
+ * variables are consumed by the front‑office to style the booking interfaces.
+ */
+export type Theme = {
+  __typename?: 'Theme';
+  logoUrl?: Maybe<Scalars['String']>;
+  primaryColor?: Maybe<Scalars['String']>;
+  secondaryColor?: Maybe<Scalars['String']>;
+  typography?: Maybe<Scalars['String']>;
+};
+
+export type ThemeInput = {
+  logoUrl?: InputMaybe<Scalars['String']>;
+  primaryColor?: InputMaybe<Scalars['String']>;
+  secondaryColor?: InputMaybe<Scalars['String']>;
+  typography?: InputMaybe<Scalars['String']>;
+};
+
 export type User = {
   __typename?: 'User';
   avatar?: Maybe<Scalars['String']>;
@@ -1022,6 +1223,12 @@ export type UserPreferences = {
   language?: Maybe<Scalars['String']>;
   notifications?: Maybe<NotificationPreferences>;
   timezone?: Maybe<Scalars['String']>;
+};
+
+export type UserUpdateInput = {
+  businessId?: InputMaybe<Scalars['ID']>;
+  businessType?: InputMaybe<Scalars['String']>;
+  role?: InputMaybe<Scalars['String']>;
 };
 
 export type CreateGuestMutationVariables = Exact<{
