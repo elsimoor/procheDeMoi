@@ -16,6 +16,17 @@ import { gql, useQuery, useMutation } from "@apollo/client";
 // We intentionally omit the `myHotel` query here.  Instead we derive the
 // current hotel identifier from the session via the `/api/session` endpoint.
 
+const GET_HOTEL_AMENITIES = gql`
+  query GetHotelAmenities($hotelId: ID!) {
+    hotel(id: $hotelId) {
+      id
+      amenities {
+        name
+      }
+    }
+  }
+`;
+
 // Query to fetch rooms for a particular hotel
 const GET_ROOMS = gql`
   query GetRooms($hotelId: ID!) {
@@ -96,15 +107,17 @@ interface RoomFormState {
   capacity: number | "";
   price: number | "";
   status: string;
-  amenities: string;
+  amenities: string[];
   images: string;
 
   // Additional descriptive fields
-  bedType: string;
+  bedType: string[];
   numberOfBeds: number | "";
   numberOfBathrooms: number | "";
   description: string;
 }
+
+const bedTypes = ["Single", "Double", "Queen", "King"];
 
 export default function HotelRoomsPage() {
   // Business context from the session.  We derive the current hotelId once
@@ -148,6 +161,12 @@ export default function HotelRoomsPage() {
     skip: !hotelId,
   });
 
+  // Fetch hotel amenities
+  const { data: hotelData, loading: hotelLoading } = useQuery(GET_HOTEL_AMENITIES, {
+    variables: { hotelId },
+    skip: !hotelId,
+  });
+
   // Prepare mutations
   const [createRoom] = useMutation(CREATE_ROOM);
   const [updateRoom] = useMutation(UPDATE_ROOM);
@@ -161,9 +180,9 @@ export default function HotelRoomsPage() {
     capacity: "",
     price: "",
     status: "available",
-    amenities: "",
+    amenities: [],
     images: "",
-    bedType: "",
+    bedType: [],
     numberOfBeds: "",
     numberOfBathrooms: "",
     description: "",
@@ -182,9 +201,9 @@ export default function HotelRoomsPage() {
       capacity: "",
       price: "",
       status: "available",
-      amenities: "",
+      amenities: [],
       images: "",
-      bedType: "",
+      bedType: [],
       numberOfBeds: "",
       numberOfBathrooms: "",
       description: "",
@@ -197,9 +216,6 @@ export default function HotelRoomsPage() {
     e.preventDefault();
     if (!hotelId) return;
     // Convert the comma‑separated amenities and images into arrays
-    const amenitiesArray = formState.amenities
-      ? formState.amenities.split(",").map((a) => a.trim()).filter(Boolean)
-      : [];
     const imagesArray = formState.images
       ? formState.images.split(",").map((i) => i.trim()).filter(Boolean)
       : [];
@@ -213,13 +229,13 @@ export default function HotelRoomsPage() {
       // Price is required in the backend (Float!), so default to 0 when empty
       price: formState.price !== "" ? Number(formState.price) : 0,
       status: formState.status,
-      amenities: amenitiesArray,
+      amenities: formState.amenities,
       features: [],
       condition: "good",
       images: imagesArray,
 
       // New descriptive fields
-      bedType: formState.bedType || undefined,
+      bedType: formState.bedType,
       numberOfBeds: formState.numberOfBeds !== "" ? Number(formState.numberOfBeds) : undefined,
       numberOfBathrooms: formState.numberOfBathrooms !== "" ? Number(formState.numberOfBathrooms) : undefined,
       description: formState.description || undefined,
@@ -248,10 +264,10 @@ export default function HotelRoomsPage() {
       capacity: room.capacity ?? "",
       price: room.price ?? "",
       status: room.status || "available",
-      amenities: room.amenities?.join(", ") || "",
+      amenities: Array.isArray(room.amenities) ? room.amenities : [],
       images: room.images?.join(", ") || "",
       // Populate new descriptive fields when editing
-      bedType: room.bedType || "",
+      bedType: Array.isArray(room.bedType) ? room.bedType : [],
       numberOfBeds: room.numberOfBeds ?? "",
       numberOfBathrooms: room.numberOfBathrooms ?? "",
       description: room.description || "",
@@ -267,7 +283,7 @@ export default function HotelRoomsPage() {
   };
 
   // Render loading and error states
-  if (sessionLoading || roomsLoading) {
+  if (sessionLoading || roomsLoading || hotelLoading) {
     return <div className="p-6">Loading...</div>;
   }
   if (sessionError) {
@@ -408,25 +424,59 @@ export default function HotelRoomsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Amenities (comma separated)</label>
-            <input
-              type="text"
-              value={formState.amenities}
-              onChange={(e) => setFormState({ ...formState, amenities: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Amenities</label>
+            <div className="grid grid-cols-2 gap-2">
+              {hotelLoading ? (
+                <p>Loading amenities...</p>
+              ) : (
+                hotelData?.hotel?.amenities.map((amenity: any) => (
+                  <label key={amenity.name} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={formState.amenities.includes(amenity.name)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setFormState((prevState) => {
+                          const newAmenities = checked
+                            ? [...prevState.amenities, amenity.name]
+                            : prevState.amenities.filter((a) => a !== amenity.name);
+                          return { ...prevState, amenities: newAmenities };
+                        });
+                      }}
+                      className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                    />
+                    <span>{amenity.name}</span>
+                  </label>
+                ))
+              )}
+            </div>
           </div>
         {/* Additional descriptive fields for the room.  These allow the hotelier
             to specify details like bed type, number of beds, number of
             bathrooms and a description. */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Bed Type</label>
-          <input
-            type="text"
-            value={formState.bedType}
-            onChange={(e) => setFormState({ ...formState, bedType: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+          <div className="grid grid-cols-2 gap-2">
+            {bedTypes.map((bedType) => (
+              <label key={bedType} className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formState.bedType.includes(bedType)}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setFormState((prevState) => {
+                      const newBedTypes = checked
+                        ? [...prevState.bedType, bedType]
+                        : prevState.bedType.filter((bt) => bt !== bedType);
+                      return { ...prevState, bedType: newBedTypes };
+                    });
+                  }}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span>{bedType}</span>
+              </label>
+            ))}
+          </div>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Number of Beds</label>

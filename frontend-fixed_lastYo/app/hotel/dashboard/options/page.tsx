@@ -479,76 +479,46 @@ export default function HotelOptions() {
                 </button>
               </div>
 
-              <div className="bg-gray-50 rounded-lg p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="font-medium text-gray-900 mb-4">Included Amenities</h3>
-                    <div className="space-y-3">
-                      {amenities
-                        .filter((a) => a.included)
-                        .map((amenity) => (
-                          <div
-                            key={amenity.id}
-                            className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200"
-                          >
-                            <div>
-                              <span className="font-medium text-gray-900">{amenity.name}</span>
-                              <span className="text-sm text-gray-500 ml-2">({amenity.category})</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-green-600 text-sm font-medium">Included</span>
-                              <button
-                                onClick={() => handleEdit(amenity, "amenity")}
-                                className="text-gray-400 hover:text-blue-600"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(amenity.id, "amenity")}
-                                className="text-gray-400 hover:text-red-600"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {amenities.map((amenity) => (
+                  <div
+                    key={amenity.id}
+                    className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{amenity.name}</h3>
+                        <p className="text-sm text-gray-500">{amenity.category}</p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEdit(amenity, "amenity")}
+                          className="text-gray-400 hover:text-blue-600"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(amenity.id, "amenity")}
+                          className="text-gray-400 hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <h3 className="font-medium text-gray-900 mb-4">Premium Amenities</h3>
-                    <div className="space-y-3">
-                      {amenities
-                        .filter((a) => !a.included)
-                        .map((amenity) => (
-                          <div
-                            key={amenity.id}
-                            className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200"
-                          >
-                            <div>
-                              <span className="font-medium text-gray-900">{amenity.name}</span>
-                              <span className="text-sm text-gray-500 ml-2">({amenity.category})</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-blue-600 text-sm font-medium">Premium</span>
-                              <button
-                                onClick={() => handleEdit(amenity, "amenity")}
-                                className="text-gray-400 hover:text-blue-600"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(amenity.id, "amenity")}
-                                className="text-gray-400 hover:text-red-600"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                    <div className="flex justify-between items-center">
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          amenity.included
+                            ? "bg-green-100 text-green-800"
+                            : "bg-blue-100 text-blue-800"
+                        }`}
+                      >
+                        {amenity.included ? "Included" : "Premium"}
+                      </span>
                     </div>
                   </div>
-                </div>
+                ))}
               </div>
             </div>
           )}

@@ -71,7 +71,7 @@ const roomSchema = new mongoose_1.Schema({
     // Additional descriptive fields for a room.  These are optional and
     // provide more details about the accommodation.
     bedType: {
-        type: String,
+        type: [String],
         required: false
     },
     numberOfBeds: {
