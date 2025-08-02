@@ -23,7 +23,7 @@ exports.roomTypeDef = (0, apollo_server_express_1.gql) `
     images: [String!]!
     isActive: Boolean!
     # Newly added descriptive fields
-    bedType: String
+    bedType: [String]
     numberOfBeds: Int
     numberOfBathrooms: Int
     description: String
