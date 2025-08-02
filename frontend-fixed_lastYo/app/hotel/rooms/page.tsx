@@ -97,7 +97,7 @@ export default function RoomsListPage() {
   // are provided.  When check‑in/out are specified we fetch only
   // available rooms; otherwise we fall back to all rooms.
   const { 
-    data: roomsData,
+    data: roomsData, 
     loading: roomsLoading,
     error: roomsError,
   } = useQuery(hasDates ? GET_AVAILABLE_ROOMS : GET_ROOMS, {
